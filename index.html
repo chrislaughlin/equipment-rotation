@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/equipment-rotation/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>equipment-rotation</title>
+    <script type="module" crossorigin src="/equipment-rotation/assets/index-DU1T6fGo.js"></script>
+  </head>
+  <body>
+    <input id="file" type="file" accept="image/*" />
+    <p style="margin-top: 12px">Or paste image URLs (one per line):</p>
+    <textarea
+      id="url-list"
+      rows="6"
+      placeholder="https://example.com/image-1.jpg&#10;https://example.com/image-2.png"
+      style="display: block; width: min(680px, 100%); margin-top: 8px;"
+    ></textarea>
+    <button id="run-urls" type="button" style="margin-top: 8px;">Run URL list</button>
+    <p id="status">Pick an image</p>
+    <img id="preview" style="max-width: 320px; display:block; margin-top:12px;" />
+    <pre id="results" style="white-space: pre-wrap; max-width: 680px;"></pre>
+    <div id="app"></div>
+  </body>
+</html>
