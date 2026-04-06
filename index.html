@@ -8,8 +8,17 @@
   </head>
   <body>
     <input id="file" type="file" accept="image/*" />
+    <p style="margin-top: 12px">Or paste image URLs (one per line):</p>
+    <textarea
+      id="url-list"
+      rows="6"
+      placeholder="https://example.com/image-1.jpg&#10;https://example.com/image-2.png"
+      style="display: block; width: min(680px, 100%); margin-top: 8px;"
+    ></textarea>
+    <button id="run-urls" type="button" style="margin-top: 8px;">Run URL list</button>
     <p id="status">Pick an image</p>
     <img id="preview" style="max-width: 320px; display:block; margin-top:12px;" />
+    <pre id="results" style="white-space: pre-wrap; max-width: 680px;"></pre>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

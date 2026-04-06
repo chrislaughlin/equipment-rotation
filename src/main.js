@@ -10,7 +10,10 @@ const STD = [0.229, 0.224, 0.225];
 
 const statusEl = document.getElementById("status");
 const fileEl = document.getElementById("file");
+const urlListEl = document.getElementById("url-list");
+const runUrlsEl = document.getElementById("run-urls");
 const previewEl = document.getElementById("preview");
+const resultsEl = document.getElementById("results");
 
 let sessionPromise;
 
@@ -55,13 +58,19 @@ function humanLabel(classIndex) {
   return ["upright", "rotate 90° clockwise", "rotate 180°", "rotate 90° counter-clockwise"][classIndex] ?? "unknown";
 }
 
-function loadImageFromFile(file) {
+function loadImageFromBlob(blob) {
   return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(blob);
     const img = new Image();
 
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Could not load the selected image."));
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      resolve(img);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Could not load the image."));
+    };
     img.src = url;
   });
 }
@@ -172,15 +181,10 @@ async function getOrientation(file) {
   return exif?.Orientation || 1;
 }
 
-fileEl.addEventListener("change", async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-
-  statusEl.textContent = "Loading image…";
-
+async function runPredictionForImage({ imageBlob, sourceLabel }) {
   try {
-    const img = await loadImageFromFile(file);
-    const orientation = await getOrientation(file);
+    const img = await loadImageFromBlob(imageBlob);
+    const orientation = await getOrientation(imageBlob);
     previewEl.src = img.src;
 
     statusEl.textContent = "Running model…";
@@ -189,12 +193,79 @@ fileEl.addEventListener("change", async (e) => {
     const correctedSrc = drawRotated(img, result.correctionDegrees);
     previewEl.src = correctedSrc;
 
-    statusEl.textContent =
-      `Prediction: ${result.label} | confidence: ${(result.confidence * 100).toFixed(1)}% | ` +
+    const message =
+      `${sourceLabel}: ${result.label} | confidence: ${(result.confidence * 100).toFixed(1)}% | ` +
       `applied correction: ${result.correctionDegrees}° | EXIF orientation: ${orientation}`;
+    statusEl.textContent = message;
+    return message;
   } catch (err) {
     console.error(err);
     const message = err instanceof Error ? err.message : String(err);
-    statusEl.textContent = `Failed to run prediction: ${message}`;
+    const errorMessage = `${sourceLabel}: failed to run prediction: ${message}`;
+    statusEl.textContent = errorMessage;
+    return errorMessage;
   }
+}
+
+async function fetchImageFromUrl(url) {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status} ${response.statusText}).`);
+  }
+
+  const contentType = response.headers.get("content-type");
+  if (contentType && !contentType.startsWith("image/")) {
+    throw new Error(`URL returned ${contentType} instead of an image.`);
+  }
+
+  return response.blob();
+}
+
+fileEl.addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+
+  resultsEl.textContent = "";
+  statusEl.textContent = "Loading image…";
+  const resultLine = await runPredictionForImage({
+    imageBlob: file,
+    sourceLabel: file.name,
+  });
+  resultsEl.textContent = resultLine;
+});
+
+runUrlsEl.addEventListener("click", async () => {
+  const urls = urlListEl.value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (!urls.length) {
+    statusEl.textContent = "Enter at least one image URL.";
+    resultsEl.textContent = "";
+    return;
+  }
+
+  const resultLines = [];
+  for (let i = 0; i < urls.length; i++) {
+    const url = urls[i];
+    statusEl.textContent = `Fetching image ${i + 1}/${urls.length}…`;
+
+    try {
+      const blob = await fetchImageFromUrl(url);
+      const line = await runPredictionForImage({
+        imageBlob: blob,
+        sourceLabel: url,
+      });
+      resultLines.push(line);
+    } catch (err) {
+      console.error(err);
+      const message = err instanceof Error ? err.message : String(err);
+      const line = `${url}: failed to fetch image: ${message}`;
+      statusEl.textContent = line;
+      resultLines.push(line);
+    }
+  }
+
+  resultsEl.textContent = resultLines.join("\n");
 });
